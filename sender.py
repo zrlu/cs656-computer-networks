@@ -60,7 +60,7 @@ class Sender:
     def udt_send(self, pack):
         udp.send_packet(self.sock_send, self.emulator_addr, self.emulator_port, pack)
         self.seqnum_log.info('{}'.format(pack.seq_num))
-    
+
     
     def udt_recv(self):
         return udp.recv_packet(self.sock_recv)
