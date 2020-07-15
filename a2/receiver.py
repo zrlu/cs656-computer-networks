@@ -2,6 +2,7 @@ import udp
 from packet import packet
 import time
 from logger import get_logger
+import sys
 
 
 class Receiver:
@@ -85,7 +86,7 @@ class Receiver:
                         if pack.seq_num == self.expectedseqnum:
 
                             # Extract and write
-                            file.write(data = pack.data)
+                            file.write(pack.data)
 
                             # Create an ACK
                             self.sndpkt = packet.create_ack(self.expectedseqnum)
@@ -119,7 +120,7 @@ class Receiver:
 
 
 if __name__ == '__main__':
-    # r = Receiver('127.0.0.1', 4000, 7654, 'tiny_copy.txt')
-    r = Receiver('127.0.0.1', 4000, 7654, 'large_copy.txt')
+    _, emu_addr, emu_port, in_port, fn = sys.argv
+    r = Receiver(emu_addr, int(emu_port), int(in_port), fn)
     ret = r.loop()
     exit(ret)

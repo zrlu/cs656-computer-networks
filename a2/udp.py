@@ -1,5 +1,6 @@
 from packet import packet
 from socket import *
+import sys
 
 
 # Create a socket for sending UDP packets

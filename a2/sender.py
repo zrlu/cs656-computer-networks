@@ -3,7 +3,7 @@ from packet import packet
 import threading
 import time
 from logger import get_logger
-import pdb
+import sys
 
 
 class Sender:
@@ -240,7 +240,8 @@ class Sender:
 
 
 if __name__ == '__main__':
-    s = Sender('127.0.0.1', 5000, 9898, 'large.txt')
+    _, emu_addr, emu_port, ack_port, fn = sys.argv
+    s = Sender(emu_addr, int(emu_port), int(ack_port), fn)
     ret = s.start()
     exit(ret)
 
