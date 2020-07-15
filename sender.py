@@ -15,7 +15,6 @@ class Sender:
         self.window_size = ws
         self.seq_modulo = seq_mod
         self.filename = fn
-        self.chunks = []
         self.base = 0
         self.nextseqnum = 0
         self.sndpkt = [None for _ in range(self.seq_modulo)]
@@ -25,13 +24,24 @@ class Sender:
         self.sock_recv = udp.sock_recv(self.ack_port)
         self.seqnum_log = get_logger('seqnum')
         self.ack_log = get_logger('ack')
+        self.lock = threading.Lock()
+
+    
+    def chunker(self):
+        with open(self.filename, 'r') as file:
+            chunk = file.read(self.max_packet_data_size)
+            while chunk:
+                yield chunk
+                chunk = file.read(self.max_packet_data_size)
 
 
     def start_timer(self):
+        self.lock.acquire()
         if self.timer is not None:
             self.clear_timer()
         self.timer = threading.Timer(0.1, self.timeout_event)
         self.timer.start()
+        self.lock.release()
 
 
     def timeout_event(self):
@@ -45,14 +55,6 @@ class Sender:
 
     def clear_timer(self):
         self.timer.cancel()
-
-
-    def break_chunks(self):
-        with open(self.filename, 'r') as file:
-            chunk = file.read(self.max_packet_data_size)
-            while chunk:
-                self.chunks.append(chunk)
-                chunk = file.read(self.max_packet_data_size)
 
 
     def incr_nextseqnum(self):
@@ -88,7 +90,7 @@ class Sender:
 
     def rdt_rcv(self, recv_pack):
         self.base = (recv_pack.seq_num + 1) % self.seq_modulo
-        print("rdt_rcv update base", self.base)
+        print("rdt_rcv", self.base, 'nextseqnum', self.nextseqnum)
         if self.base == self.nextseqnum:
             self.clear_timer()
         else:
@@ -97,7 +99,7 @@ class Sender:
 
 
     def sending_thread(self):
-        for chunk in self.chunks:
+        for chunk in self.chunker():
             self.rdt_send(chunk)
         self.send_eot()
         print('sending_thread done')
@@ -114,7 +116,6 @@ class Sender:
 
 
     def start(self):
-        self.break_chunks()
         t1 = threading.Thread(target=self.sending_thread)
         t1.start()
 
@@ -130,7 +131,7 @@ class Sender:
 
 
 if __name__ == '__main__':
-    s = Sender('127.0.0.1', 5000, 9898, 'tiny.txt')
+    s = Sender('127.0.0.1', 5000, 9898, 'medium.txt')
     ret = s.start()
     exit(ret)
 
