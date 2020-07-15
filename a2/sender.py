@@ -59,6 +59,9 @@ class Sender:
         # Log file for acks
         self.ack_log = get_logger('ack')
 
+        # Log running time
+        self.time_log = get_logger('time')
+
         # If this flag is set, an EOT should be send to the receiver when there is no unacked packet
         self.should_send_eot = False
 
@@ -220,6 +223,8 @@ class Sender:
     # Start the program
     def start(self):
 
+        start_time = time.time()
+
         # Create a thread for sending packets
         t1 = threading.Thread(target=self.sending_thread)
 
@@ -235,6 +240,9 @@ class Sender:
 
         # Thread join
         t1.join()
+
+        # Record the total time
+        self.time_log.info('{}'.format(time.time() - start_time))
 
         return 0
 

@@ -3,7 +3,7 @@ from packet import packet
 import time
 from logger import get_logger
 import sys
-
+import os
 
 class Receiver:
 
@@ -66,6 +66,11 @@ class Receiver:
 
     # Receive packets
     def loop(self):
+
+        # Create folder if not exists
+        dirname = os.path.dirname(self.filename)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
 
         # Open a file to write
         with open(self.filename, 'w') as file:
