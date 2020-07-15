@@ -101,20 +101,16 @@ class Sender:
             self.rdt_send(chunk)
         self.send_eot()
         print('sending_thread done')
-    
 
-    def wait_for_eot(self):
-        pack = self.udt_recv()
-        while pack.type != 2:
+
+    def wait_loop(self):
+        while True:
             pack = self.udt_recv()
-    
-
-    def wait_for_acks(self):
-        while self.total_acked < len(self.chunks):
-                pack = self.udt_recv()
-                if pack.type == 0:
-                    self.rdt_rcv(pack)
-                    self.ack_log.info('{}'.format(pack.seq_num))
+            if pack.type == 0:
+                self.rdt_rcv(pack)
+                self.ack_log.info('{}'.format(pack.seq_num))
+            if pack.type == 2:
+                break
 
 
     def start(self):
@@ -122,9 +118,7 @@ class Sender:
         t1 = threading.Thread(target=self.sending_thread)
         t1.start()
 
-    
-        self.wait_for_acks()
-        self.wait_for_eot()
+        self.wait_loop()
 
         self.sock_recv.close()
         self.sock_send.close()
