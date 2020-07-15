@@ -109,12 +109,10 @@ class Sender:
 
 
     def sending_thread(self):
-        self.state_lock.acquire()
         for chunk in self.chunker():
             while self.rdt_send(chunk):
                 time.sleep(0.1)
-        self.send_eot()
-        self.state_lock.release()
+        # self.send_eot()
         print('sending_thread done')
 
 
@@ -144,7 +142,7 @@ class Sender:
 
 
 if __name__ == '__main__':
-    s = Sender('127.0.0.1', 5000, 9898, 'medium.txt')
+    s = Sender('127.0.0.1', 5000, 9898, 'large.txt')
     ret = s.start()
     exit(ret)
 

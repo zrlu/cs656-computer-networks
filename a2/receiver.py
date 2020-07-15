@@ -49,12 +49,13 @@ class Receiver:
                             data = pack.data
                             file.write(data)
 
-                            if not (self.recent_pack is None and pack.seq_num != 0):
-                                self.sndpkt = packet.create_ack(self.expectedseqnum)
-                                self.udt_send(self.sndpkt)
-
-                            self.recent_pack = pack
+                            self.sndpkt = packet.create_ack(self.expectedseqnum)
+                            self.udt_send(self.sndpkt)
                             self.incr_expectedseqnum()
+                            self.recent_pack = pack
+
+                        elif pack.seq_num != 0 and self.recent_pack is None:
+                            self.udt_send(packet.create_ack(-1))
                         else:
                             self.udt_send(self.sndpkt)
 
@@ -68,5 +69,5 @@ class Receiver:
 
 if __name__ == '__main__':
     # r = Receiver('127.0.0.1', 4000, 7654, 'tiny_copy.txt')
-    r = Receiver('127.0.0.1', 4000, 7654, 'medium_copy.txt')
+    r = Receiver('127.0.0.1', 4000, 7654, 'large_copy.txt')
     r.loop()
