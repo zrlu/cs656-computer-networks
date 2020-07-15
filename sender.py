@@ -39,6 +39,8 @@ class Sender:
         for i in range(self.base, self.nextseqnum):
             if self.sndpkt[i] is not None:
                 self.udt_send(self.sndpkt[i])
+            else:
+                break
 
 
     def clear_timer(self):
@@ -66,16 +68,16 @@ class Sender:
         return udp.recv_packet(self.sock_recv)
 
 
-    def rdt_send(self, data, resend=False):
+    def rdt_send(self, data):
         if self.nextseqnum < self.base + self.window_size:
             self.sndpkt[self.nextseqnum] = packet.create_packet(self.nextseqnum, data)
             self.udt_send(self.sndpkt[self.nextseqnum])
             if self.base == self.nextseqnum:
                 self.start_timer()
             self.incr_nextseqnum()
-            return False
         else:
-            return True
+            time.sleep(0.1)
+            self.rdt_send(data)
     
 
     def send_eot(self):
@@ -96,10 +98,7 @@ class Sender:
 
     def sending_thread(self):
         for chunk in self.chunks:
-            window_full = self.rdt_send(chunk)
-            while window_full:
-                time.sleep(0.1)
-                window_full = self.rdt_send(chunk, True)
+            self.rdt_send(chunk)
         self.send_eot()
         print('sending_thread done')
     
