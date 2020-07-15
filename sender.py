@@ -38,6 +38,7 @@ class Sender:
     def incr_nextseqnum(self):
         self.nextseqnum = (self.nextseqnum + 1) % self.seq_modulo
 
+
     def unacked(self):
         start = self.base
         end = self.nextseqnum
@@ -61,7 +62,9 @@ class Sender:
     def timeout_event(self):
         self.timer_start()
         for i in self.unacked():
-            self.udt_send(self.sndpkt[i])
+            pack = self.sndpkt[i]
+            if pack is not None:
+                self.udt_send(self.sndpkt[i])
 
 
     def timer_stop(self):
@@ -141,7 +144,7 @@ class Sender:
 
 
 if __name__ == '__main__':
-    s = Sender('127.0.0.1', 5000, 9898, 'large.txt')
+    s = Sender('127.0.0.1', 5000, 9898, 'medium.txt')
     ret = s.start()
     exit(ret)
 
