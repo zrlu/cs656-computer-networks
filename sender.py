@@ -51,6 +51,20 @@ class Sender:
     def get_base(self):
         return self.base
 
+    
+    def unacked(self):
+        start = self.get_base()
+        end = self.get_nextseqnum()
+        print('resend', start, end)
+        if start <= end:
+            for i in range(start, end):
+                yield i
+        else:
+            for i in range(start, self.seq_modulo):
+                yield i
+            for i in range(0, end):
+                yield i
+
 
     def timer_start(self):
         if self.timer is not None:
@@ -61,12 +75,8 @@ class Sender:
 
     def timeout_event(self):
         self.timer_start()
-        print('timeout event', self.base, self.get_nextseqnum())
-        for i in range(self.base, self.get_nextseqnum()):
-            if self.sndpkt[i % self.seq_modulo] is not None:
-                self.udt_send(self.sndpkt[i])
-            else:
-                break
+        for i in self.unacked():
+            self.udt_send(self.sndpkt[i])
 
 
     def timer_stop(self):
@@ -84,8 +94,10 @@ class Sender:
 
     def rdt_send(self, data):
 
+        print(self.get_base(), self.get_nextseqnum())
+
         nextseqnum = self.get_nextseqnum()
-        if nextseqnum < self.base + self.window_size:
+        if self.base <= nextseqnum and nextseqnum < self.base + self.window_size:
             self.sndpkt[nextseqnum] = packet.create_packet(nextseqnum, data)
             self.udt_send(self.sndpkt[nextseqnum])
             if self.base == nextseqnum:
