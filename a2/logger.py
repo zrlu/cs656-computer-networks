@@ -2,8 +2,8 @@ import logging
 import os
 import sys
 
-# returns a logger
-def get_logger(name, level='INFO', stdout=True):
+# Create a logger
+def get_logger(name, level='INFO'):
     log = logging.getLogger(name)
     log.setLevel(level)
     log.handlers.clear()
