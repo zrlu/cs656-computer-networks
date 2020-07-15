@@ -24,7 +24,8 @@ class Sender:
         self.sock_recv = udp.sock_recv(self.ack_port)
         self.seqnum_log = get_logger('seqnum')
         self.ack_log = get_logger('ack')
-        self.lock = threading.Lock()
+        self.timer_lock = threading.Lock()
+        self.state_lock = threading.Lock()
 
     
     def chunker(self):
@@ -35,30 +36,41 @@ class Sender:
                 chunk = file.read(self.max_packet_data_size)
 
 
-    def start_timer(self):
-        self.lock.acquire()
+    def get_nextseqnum(self):
+        return self.nextseqnum
+
+
+    def incr_nextseqnum(self):
+        self.nextseqnum = (self.nextseqnum + 1) % self.seq_modulo
+
+
+    def update_base(self, new_base):
+        self.base = new_base
+
+    
+    def get_base(self):
+        return self.base
+
+
+    def timer_start(self):
         if self.timer is not None:
-            self.clear_timer()
+            self.timer_stop()
         self.timer = threading.Timer(0.1, self.timeout_event)
         self.timer.start()
-        self.lock.release()
 
 
     def timeout_event(self):
-        self.start_timer()
-        for i in range(self.base, self.nextseqnum):
-            if self.sndpkt[i] is not None:
+        self.timer_start()
+        print('timeout event', self.base, self.get_nextseqnum())
+        for i in range(self.base, self.get_nextseqnum()):
+            if self.sndpkt[i % self.seq_modulo] is not None:
                 self.udt_send(self.sndpkt[i])
             else:
                 break
 
 
-    def clear_timer(self):
+    def timer_stop(self):
         self.timer.cancel()
-
-
-    def incr_nextseqnum(self):
-        self.nextseqnum = (self.nextseqnum + 1) % self.seq_modulo
 
     
     def udt_send(self, pack):
@@ -71,37 +83,40 @@ class Sender:
 
 
     def rdt_send(self, data):
-        if self.nextseqnum < self.base + self.window_size:
-            self.sndpkt[self.nextseqnum] = packet.create_packet(self.nextseqnum, data)
-            self.udt_send(self.sndpkt[self.nextseqnum])
-            if self.base == self.nextseqnum:
-                self.start_timer()
+
+        nextseqnum = self.get_nextseqnum()
+        if nextseqnum < self.base + self.window_size:
+            self.sndpkt[nextseqnum] = packet.create_packet(nextseqnum, data)
+            self.udt_send(self.sndpkt[nextseqnum])
+            if self.base == nextseqnum:
+                self.timer_start()
             self.incr_nextseqnum()
         else:
             time.sleep(0.1)
             self.rdt_send(data)
+        
     
-
     def send_eot(self):
-        eot = packet.create_eot(self.nextseqnum)
+        eot = packet.create_eot(self.get_nextseqnum())
         self.udt_send(eot)
         self.incr_nextseqnum()
 
 
     def rdt_rcv(self, recv_pack):
-        self.base = (recv_pack.seq_num + 1) % self.seq_modulo
-        print("rdt_rcv", self.base, 'nextseqnum', self.nextseqnum)
-        if self.base == self.nextseqnum:
-            self.clear_timer()
+        self.update_base((recv_pack.seq_num + 1) % self.seq_modulo)
+        if self.get_base() == self.get_nextseqnum():
+            self.timer_stop()
         else:
-            self.start_timer()
+            self.timer_start()
         self.total_acked += 1
 
 
     def sending_thread(self):
+        self.state_lock.acquire()
         for chunk in self.chunker():
             self.rdt_send(chunk)
         self.send_eot()
+        self.state_lock.release()
         print('sending_thread done')
 
 
@@ -126,7 +141,7 @@ class Sender:
 
         t1.join()
 
-        self.clear_timer()
+        self.timer_stop()
         return 0
 
 
