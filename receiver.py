@@ -65,5 +65,5 @@ class Receiver:
 
 if __name__ == '__main__':
     # r = Receiver('127.0.0.1', 4000, 7654, 'tiny_copy.txt')
-    r = Receiver('127.0.0.1', 4000, 7654, 'medium_copy.txt')
+    r = Receiver('127.0.0.1', 4000, 7654, 'large_copy.txt')
     r.loop()

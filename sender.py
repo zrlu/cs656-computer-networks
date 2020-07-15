@@ -35,27 +35,12 @@ class Sender:
                 yield chunk
                 chunk = file.read(self.max_packet_data_size)
 
-
-    def get_nextseqnum(self):
-        return self.nextseqnum
-
-
     def incr_nextseqnum(self):
         self.nextseqnum = (self.nextseqnum + 1) % self.seq_modulo
 
-
-    def update_base(self, new_base):
-        self.base = new_base
-
-    
-    def get_base(self):
-        return self.base
-
-    
     def unacked(self):
-        start = self.get_base()
-        end = self.get_nextseqnum()
-        print('resend', start, end)
+        start = self.base
+        end = self.nextseqnum
         if start <= end:
             for i in range(start, end):
                 yield i
@@ -94,29 +79,26 @@ class Sender:
 
     def rdt_send(self, data):
 
-        print(self.get_base(), self.get_nextseqnum())
-
-        nextseqnum = self.get_nextseqnum()
-        if self.base <= nextseqnum and nextseqnum < self.base + self.window_size:
-            self.sndpkt[nextseqnum] = packet.create_packet(nextseqnum, data)
-            self.udt_send(self.sndpkt[nextseqnum])
-            if self.base == nextseqnum:
+        if self.base <= self.nextseqnum and self.nextseqnum < self.base + self.window_size:
+            self.sndpkt[self.nextseqnum] = packet.create_packet(self.nextseqnum, data)
+            self.udt_send(self.sndpkt[self.nextseqnum])
+            if self.base == self.nextseqnum:
                 self.timer_start()
             self.incr_nextseqnum()
+            return False
         else:
-            time.sleep(0.1)
-            self.rdt_send(data)
+            return True
         
     
     def send_eot(self):
-        eot = packet.create_eot(self.get_nextseqnum())
+        eot = packet.create_eot(self.nextseqnum)
         self.udt_send(eot)
         self.incr_nextseqnum()
 
 
     def rdt_rcv(self, recv_pack):
-        self.update_base((recv_pack.seq_num + 1) % self.seq_modulo)
-        if self.get_base() == self.get_nextseqnum():
+        self.base = (recv_pack.seq_num + 1) % self.seq_modulo
+        if self.base == self.nextseqnum:
             self.timer_stop()
         else:
             self.timer_start()
@@ -126,7 +108,8 @@ class Sender:
     def sending_thread(self):
         self.state_lock.acquire()
         for chunk in self.chunker():
-            self.rdt_send(chunk)
+            while self.rdt_send(chunk):
+                time.sleep(0.1)
         self.send_eot()
         self.state_lock.release()
         print('sending_thread done')
@@ -158,7 +141,7 @@ class Sender:
 
 
 if __name__ == '__main__':
-    s = Sender('127.0.0.1', 5000, 9898, 'medium.txt')
+    s = Sender('127.0.0.1', 5000, 9898, 'large.txt')
     ret = s.start()
     exit(ret)
 
