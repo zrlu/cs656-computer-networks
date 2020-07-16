@@ -114,13 +114,13 @@ class Sender:
         self.timer.cancel()
 
     
-    # Unreliabily send an UDP packet to the emulator
+    # Unreliabily send a UDP packet to the emulator
     def udt_send(self, pack):
         udp.send_packet(self.sock_send, self.emulator_addr, self.emulator_port, pack)
         self.seqnum_log.info('{}'.format(pack.seq_num))
 
     
-    # Unreliabily receive an UDP packet from the emulator
+    # Unreliabily receive a UDP packet from the emulator
     def udt_recv(self):
         return udp.recv_packet(self.sock_recv)
 

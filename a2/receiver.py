@@ -54,9 +54,10 @@ class Receiver:
         udp.send_packet(self.sock_send, self.emulator_addr, self.emulator_port, pack)
     
 
-    # Unreliabily receive an UDP packet from the emulator
+    # Unreliabily receive a UDP packet from the emulator
     def udt_recv(self):
         return udp.recv_packet(self.sock_recv)
+
 
     # Send an EOT
     def send_eot(self):
