@@ -180,6 +180,7 @@ class Sender:
                 self.send_eot()
 
         else:
+            # Start the timer
             self.timer_start()
 
 
