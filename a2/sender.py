@@ -244,6 +244,9 @@ class Sender:
         # Record the total time
         self.time_log.info('{}'.format(time.time() - start_time))
 
+        # Stop timer, if any
+        self.timer_stop()
+
         return 0
 
 
