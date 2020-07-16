@@ -28,6 +28,8 @@ function test {
 
     ./nEmulator-linux386 $emu_port_fow $receiver_ip $in_port $emu_port_bak $sender_ip $ack_port $maxdelay $discardprob 0 &
     ./receiver.sh $emu_ip $emu_port_bak $in_port $outfile &
+
+    sleep 1
     ./sender.sh $emu_ip $emu_port_fow $ack_port $infile
 
     echo $1 $2 $3 $(cat time.log)
@@ -52,10 +54,10 @@ function nodelay {
 function nodiscard {
     echo $1 nodiscard
     test $1 10 0
-    test $1 20 0.1
-    test $1 30 0.2
-    test $1 40 0.3
-    test $1 50 0.4
+    test $1 20 0
+    test $1 30 0
+    test $1 40 0
+    test $1 50 0
 }
 
 function delayanddiscard {
@@ -75,7 +77,4 @@ function testfile {
     delayanddiscard $1
 }
 
-testfile tiny.txt
-testfile small.txt
-testfile medium.txt
-testfile large.txt
+testfile $1 | tee "$1.report"
