@@ -36,7 +36,7 @@ Sender machine:
 ./sender.sh 129.97.167.34 5000 9898 large.txt
 ```
 
-Compare (should return 0):
+Compare (should output nothing):
 ```
 cmp large.txt large_copy.txt
 ```
