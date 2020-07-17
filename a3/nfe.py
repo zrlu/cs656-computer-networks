@@ -53,6 +53,10 @@ class Link:
     def __init__(self, id, cost):
         self.id = id
         self.cost = cost
+    def __str__(self):
+        return "<Link id={} cost={}>".format(self.id, self.cost)
+    def __repr__(self):
+        return str(self)
 
 
 class Topology:

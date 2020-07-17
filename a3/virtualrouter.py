@@ -26,7 +26,7 @@ class VirtualRouter:
     # Send data to NFE
     def send(self, data):
         self.sock.sendto(data, (self.nfe_ip, self.nfe_port))
-    
+
 
     # Receive from NFE
     def recv(self, size):
@@ -36,13 +36,14 @@ class VirtualRouter:
     def init(self):
 
         # Send 'init'
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         data = struct.pack("!i", 1) # message type = 0x1
         data += struct.pack("!i", self.virtual_router_id) # router ID
-        sock.sendto(data, (self.nfe_ip, self.nfe_port))
+        self.send(data)
 
         # Wait for 'init-reply'
         buffer = self.recv(4096)
+
+        print(buffer)
 
         message_type = struct.unpack("!i", buffer[0:4])[0] # message type, 0x4
         nbr_links    = struct.unpack("!i", buffer[4:8])[0] # nbr links
@@ -52,6 +53,8 @@ class VirtualRouter:
             link_cost =  struct.unpack("!i", buffer[8*(i+1)+4:8*(i+1)+8])[0] # link_cost
             link = Link(link_id, link_cost)
             self.links.append(link)
+
+        print(self.links)
 
 
 if __name__ == '__main__':
