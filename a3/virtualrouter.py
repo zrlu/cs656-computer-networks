@@ -42,9 +42,6 @@ class VirtualRouter:
 
         # Wait for 'init-reply'
         buffer = self.recv(4096)
-
-        print(buffer)
-
         message_type = struct.unpack("!i", buffer[0:4])[0] # message type, 0x4
         nbr_links    = struct.unpack("!i", buffer[4:8])[0] # nbr links
 
@@ -54,7 +51,9 @@ class VirtualRouter:
             link = Link(link_id, link_cost)
             self.links.append(link)
 
-        print(self.links)
+
+    def foward(self):
+        pass
 
 
 if __name__ == '__main__':
