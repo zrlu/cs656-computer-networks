@@ -5,7 +5,7 @@ from nfe import Link
 from collections import defaultdict
 import heapq
 import pdb
-
+import copy
 
 class VirtualRouter:
 
@@ -106,29 +106,34 @@ class VirtualRouter:
 
     
     # Run djikstra
-    def djikstra(self, source, target):
+    def djikstra(self, graph, source, target):
         cost = defaultdict(lambda: float('inf'))
-        next_hop = None
         cost[source] = 0
+        parent = defaultdict(lambda: None)
+        parent[source] = -1
         pq = [(0, source)]
+        
         while len(pq) > 0:
             current_cost, u = heapq.heappop(pq) # extract min
-            if current_cost > cost[u]:
-                continue
+            if u == target:
+                break
 
-            if u in self.graph:
-                for v, edge_cost in self.graph[u].items():
-                    new_cost = current_cost + edge_cost
-                    if new_cost < cost[v]:
-                        cost[v] = new_cost
-                        heapq.heappush(pq, (new_cost, v))
-                        if u == source:
-                            next_hop = v
-        
-        if cost[target] != float('inf'):
-            return cost[target], next_hop
-        else:
-            return cost[target], None
+            nbrs = list(graph[u].items())
+
+            for v, edge_cost in graph[u].items():
+                new_cost = current_cost + edge_cost
+                if new_cost < cost[v]:
+                    parent[v] = u
+                    cost[v] = new_cost
+                    heapq.heappush(pq, (new_cost, v))
+                        
+        next_hop = None
+        for u, v in parent.items():
+            if v == source:
+                next_hop = u
+                break
+
+        return cost[target], next_hop
 
 
     # Update the graph and table based on the LSA received
@@ -137,14 +142,20 @@ class VirtualRouter:
         # Update the graph
         self.add_link(lsa['sender_id'], lsa['router_id'], lsa['router_link_cost'])
 
-        # Update the routing table
-        if lsa['router_id'] not in self.routing_table:
-            self.routing_table[lsa['router_id']] = (lsa['router_link_cost'], lsa['sender_id'])
+        # if lsa['sender_link_id'] in self.links:
+        #     self.add_link(self.router_id, lsa['sender_id'],  self.links[lsa['sender_link_id']])
 
-        for target in self.graph:
+        # # Update the routing table
+        # if lsa['router_id'] not in self.routing_table:
+        #     self.routing_table[lsa['router_id']] = (lsa['router_link_cost'], lsa['sender_id'])
+                
+        graph_copy = copy.deepcopy(self.graph)
+        vertices = graph_copy.keys()
+
+        for target in vertices:
             if target != self.router_id:
-                cost, next_hop = self.djikstra(self.router_id, target)
-                print(self.router_id, target, cost, next_hop)
+                cost, next_hop = self.djikstra(graph_copy, self.router_id, target)
+                print(self.router_id, '->', target, cost, next_hop, graph_copy)
 
     
     # Propagate the LSA to other routers
