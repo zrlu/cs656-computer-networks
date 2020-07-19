@@ -317,6 +317,7 @@ def listen_loop(ip, port, topology):
         else:
             print("Virtual Router {} - message cannot be forwarded, the sender_link_id is invalid, ignoring (emulator doesn't know through which of its link "
                   "the virtual router would like to send the message)".format(router.id))
+            print(sender_link_id, router.id, [n.link.id for n in router.neighbours])
             continue
 
 if __name__ == '__main__':
