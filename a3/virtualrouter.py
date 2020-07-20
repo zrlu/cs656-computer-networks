@@ -236,8 +236,12 @@ class VirtualRouter:
         if self.routingtable_update_buffer != '':
             temp += '\n'
         temp += 'ROUTING'
+        entries = []
         for dest, (total_cost, next_hop) in self.routing_table.items():
-            temp += '\n{}:{},{}'.format(dest, next_hop, total_cost)
+            entries.append((dest, next_hop, total_cost))
+        entries.sort()
+        for entry in entries:
+            temp += '\n{}:{},{}'.format(*entry)
         if self.routingtable_update_buffer != temp:
             self.routingtable_update_buffer = temp
             self.routingtable_file.info(self.routingtable_update_buffer)
