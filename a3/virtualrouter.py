@@ -1,6 +1,6 @@
 """virtualrouter.py: A virtual router with routing table."""
 
-__author__      = "Ze Ran Lu"
+__author__      = "Ze Ran Lu (zrlu@uwaterloo.ca)"
 
 import sys
 import struct
