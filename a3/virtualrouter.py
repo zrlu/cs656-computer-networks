@@ -23,14 +23,20 @@ class VirtualRouter:
         # Socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        # Links
-        self.links = {}
+        # Connected links
+        self.neighbors = set()
 
         # Routing table
         self.routing_table = {}
 
         # A graph representing the topology database
         self.graph = defaultdict(dict)
+
+        # All links
+        self.links = defaultdict(set)
+
+        # Link costs
+        self.link_costs = {}
 
         # All received LSA
         self.lsa_seen_before = set()
@@ -74,22 +80,30 @@ class VirtualRouter:
         for i in range(nbr_links):
             link_id   =  struct.unpack("!i", buffer[8*(i+1)  :8*(i+1)+4])[0] # link_id
             link_cost =  struct.unpack("!i", buffer[8*(i+1)+4:8*(i+1)+8])[0] # link_cost
-            self.links[link_id] = link_cost
+            self.neighbors.add(link_id)
+            self.link_costs[link_id] = link_cost
 
 
     # Mark LSA as seen before
     def mark_as_seen_before(self, other_lsa):
-        self.lsa_seen_before.add((other_lsa['router_id'], other_lsa['router_link_id']))
-
+        self.lsa_seen_before.add((other_lsa['router_id'], other_lsa['router_link_id'], other_lsa['router_link_cost']))
 
 
     # Check if this LSA is seen before
     def seen_before(self, other_lsa):
-        return (other_lsa['router_id'], other_lsa['router_link_id']) in self.lsa_seen_before
+        return (other_lsa['router_id'], other_lsa['router_link_id'], other_lsa['router_link_cost']) in self.lsa_seen_before
+
+
+    # Update graph
+    def update_graph(self):
+        for link_id, vertices in self.links.items():
+            if len(vertices) == 2:
+                v1, v2 = tuple(vertices)
+                self.graph_add_link(v1, v2, link_id, self.link_costs[link_id])
 
 
     # Add a link to the graph
-    def add_link(self, u, v, link_id, link_cost):
+    def graph_add_link(self, u, v, link_id, link_cost):
         if u == v:
             return
         self.graph[u][v] = (link_id, link_cost)
@@ -157,23 +171,28 @@ class VirtualRouter:
     def update_from_LSA(self, lsa):
 
         # Update the graph
-        self.add_link(lsa['sender_id'], lsa['router_id'], lsa['router_link_id'], lsa['router_link_cost'])
+        self.links[lsa['router_link_id']].add(lsa['router_id'])
+        self.links[lsa['sender_link_id']].add(lsa['sender_id'])
+        self.links[lsa['sender_link_id']].add(self.router_id)
+        self.link_costs[lsa['router_link_id']] = lsa['router_link_cost']
+        self.update_graph()
+
+        print(self.links)
 
         if len(self.graph) > 0:
             self.update_topology_file()
 
-
         graph = dict(self.graph)
         vertices = graph.keys()
 
-        try:
-            for target in vertices:
-                if target != self.router_id:
-                    # Update the routing table
-                    cost, next_hop = self.dijkstra(graph, self.router_id, target)
-                    self.routing_table[target] = (cost, next_hop)
-        except KeyError:
-            pass
+        # try:
+        #     for target in vertices:
+        #         if target != self.router_id:
+        #             # Update the routing table
+        #             cost, next_hop = self.dijkstra(graph, self.router_id, target)
+        #             self.routing_table[target] = (cost, next_hop)
+        # except KeyError:
+        #     pass
 
         if len(self.routing_table) > 0:
             self.update_routingtable_file()
@@ -181,7 +200,7 @@ class VirtualRouter:
     
     # Propagate the LSA to other routers
     def propagate(self, router_id, router_link_id, router_link_cost):
-        for link_id, _ in self.links.items():
+        for link_id in self.neighbors:
             lsa_bytes = self.LSA_serialize(self.router_id, link_id, router_id, router_link_id, router_link_cost)
             print('Sending(F):{}'.format(self.LSA_str(self.LSA_parse(lsa_bytes))))
             self.send(lsa_bytes)
@@ -224,8 +243,8 @@ class VirtualRouter:
     def forward(self):
 
         # Initial broadcast
-        for link_id, link_cost in self.links.items():
-            lsa_bytes = self.LSA_serialize(self.router_id, link_id, self.router_id, link_id, link_cost)
+        for link_id in self.neighbors:
+            lsa_bytes = self.LSA_serialize(self.router_id, link_id, self.router_id, link_id, self.link_costs[link_id])
             print('Sending(E):{}'.format(self.LSA_str(self.LSA_parse(lsa_bytes))))
             self.send(lsa_bytes)
         
