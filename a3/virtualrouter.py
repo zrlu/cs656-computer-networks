@@ -4,8 +4,7 @@ import socket
 from nfe import Link
 from collections import defaultdict
 import heapq
-import pdb
-import copy
+from logger import get_logger
 
 class VirtualRouter:
 
@@ -35,6 +34,18 @@ class VirtualRouter:
         # All received LSA
         self.all_lsa = []
 
+        # Topology file
+        self.topology_file = get_logger('topology_{}'.format(self.router_id))
+
+        # Used to avoid duplicate topology when writing
+        self.topology_update_buffer = ''
+
+        # Routingtable file
+        self.routingtable_file = get_logger('routingtable_{}'.format(self.router_id))
+
+        # Used to avoid duplicate routing table when writing
+        self.routingtable_update_buffer = ''
+
 
     # Send data to NFE
     def send(self, data):
@@ -46,6 +57,7 @@ class VirtualRouter:
         return self.sock.recv(size)
     
     
+    # Init phase
     def init(self):
 
         # Send 'init'
@@ -75,11 +87,11 @@ class VirtualRouter:
 
 
     # Add a link to the graph
-    def add_link(self, u, v, cost):
+    def add_link(self, u, v, link_id, link_cost):
         if u == v:
             return
-        self.graph[u][v] = cost
-        self.graph[v][u] = cost
+        self.graph[u][v] = (link_id, link_cost)
+        self.graph[v][u] = (link_id, link_cost)
 
 
     # Serialize a LSA message
@@ -120,11 +132,12 @@ class VirtualRouter:
             if u in visited:
                 continue
             visited.add(u)
-            if u == target:
+
+            if u == target: # Early stop
                 break
 
             for v in graph[u]:
-                new_cost = current_cost + graph[u][v]
+                new_cost = current_cost + graph[u][v][1]
                 if new_cost < cost[v]:
                     parent[v] = u
                     cost[v] = new_cost
@@ -133,7 +146,7 @@ class VirtualRouter:
         u, v = parent[target], target
         while u != source:
             v = u
-            u = parent[u]
+            u = parent[u] # Walk backward to find the next hop
 
         return cost[target], v
 
@@ -142,28 +155,67 @@ class VirtualRouter:
     def update_from_LSA(self, lsa):
 
         # Update the graph
-        self.add_link(lsa['sender_id'], lsa['router_id'], lsa['router_link_cost'])
+        self.add_link(lsa['sender_id'], lsa['router_id'], lsa['router_link_id'], lsa['router_link_cost'])
+
+        if len(self.graph) > 0:
+            self.update_topology_file()
 
         graph = dict(self.graph)
         vertices = graph.keys()
 
         for target in vertices:
             if target != self.router_id:
+
+                # Update the routing table
                 try:
                     cost, next_hop = self.dijkstra(graph, self.router_id, target)
                     self.routing_table[target] = (cost, next_hop)
-
                 except KeyError:
                     pass
 
-        print(self.routing_table)
+        if len(self.routing_table) > 0:
+            self.update_routingtable_file()
 
     
     # Propagate the LSA to other routers
     def propagate(self, router_id, router_link_id, router_link_cost):
         for link_id, _ in self.links.items():
             lsa_bytes = self.LSA_serialize(self.router_id, link_id, router_id, router_link_id, router_link_cost)
+            print('Sending(F):{}'.format(self.LSA_str(self.LSA_parse(lsa_bytes))))
             self.send(lsa_bytes)
+
+
+    # Get a string representation of LSA
+    def LSA_str(self, lsa):
+        fmt = 'SID({sender_id}),SLID({sender_link_id}),RID({router_id}),RLID({router_link_id}),LC({router_link_cost})'
+        return fmt.format(**lsa)
+    
+
+    # Update the topology into file
+    def update_topology_file(self):
+        temp = ''
+        if self.topology_update_buffer != '':
+            temp += '\n'
+        temp += 'TOPOLOGY'
+        for router1 in self.graph:
+            for router2 in self.graph[router1]:
+                temp += '\nrouter:{},router:{},linkid:{},cost:{}'.format(router1, router2, self.graph[router1][router2][0], self.graph[router1][router2][1])
+        if self.topology_update_buffer != temp:
+            self.topology_update_buffer = temp
+            self.topology_file.info(self.topology_update_buffer)
+
+
+    # Update the routing table file
+    def update_routingtable_file(self):
+        temp = ''
+        if self.topology_update_buffer != '':
+            temp += '\n'
+        temp += 'ROUTING'
+        for dest, (total_cost, next_hop) in self.routing_table.items():
+            temp += '\n{}:{},{}'.format(dest, next_hop, total_cost)
+        if self.routingtable_update_buffer != temp:
+            self.routingtable_update_buffer = temp
+            self.routingtable_file.info(self.routingtable_update_buffer)
 
 
     # Forwarding phase
@@ -172,17 +224,20 @@ class VirtualRouter:
         # Initial broadcast
         for link_id, link_cost in self.links.items():
             lsa_bytes = self.LSA_serialize(self.router_id, link_id, self.router_id, link_id, link_cost)
+            print('Sending(E):{}'.format(self.LSA_str(self.LSA_parse(lsa_bytes))))
             self.send(lsa_bytes)
         
         while True:
             buffer = self.recv(4096)
             lsa = self.LSA_parse(buffer)
+            print('Received:{}'.format(self.LSA_str(lsa)))
 
             # Drop LSA if it was seen before, otherwise add to record
             if self.seen_before(lsa):
+                print('Dropping:{}'.format(self.LSA_str(lsa)))
                 continue
             else:
-                self.all_lsa.append(lsa)                
+                self.all_lsa.append(lsa)
 
             # Update this router's states using this LSA, then forward it to neighbors
             self.update_from_LSA(lsa)
