@@ -9,7 +9,6 @@ from nfe import Link
 from collections import defaultdict
 import heapq
 from logger import get_logger
-import copy
 
 class VirtualRouter:
 
