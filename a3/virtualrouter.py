@@ -1,3 +1,7 @@
+"""virtualrouter.py: A virtual router with routing table."""
+
+__author__      = "Ze Ran Lu"
+
 import sys
 import struct
 import socket
