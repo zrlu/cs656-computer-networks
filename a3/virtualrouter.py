@@ -185,14 +185,14 @@ class VirtualRouter:
         graph = dict(self.graph)
         vertices = graph.keys()
 
-        # try:
-        #     for target in vertices:
-        #         if target != self.router_id:
-        #             # Update the routing table
-        #             cost, next_hop = self.dijkstra(graph, self.router_id, target)
-        #             self.routing_table[target] = (cost, next_hop)
-        # except KeyError:
-        #     pass
+        try:
+            for target in vertices:
+                if target != self.router_id:
+                    # Update the routing table
+                    cost, next_hop = self.dijkstra(graph, self.router_id, target)
+                    self.routing_table[target] = (cost, next_hop)
+        except KeyError:
+            pass
 
         if len(self.routing_table) > 0:
             self.update_routingtable_file()
