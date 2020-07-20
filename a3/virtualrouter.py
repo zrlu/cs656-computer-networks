@@ -5,6 +5,7 @@ from nfe import Link
 from collections import defaultdict
 import heapq
 from logger import get_logger
+import copy
 
 class VirtualRouter:
 
@@ -145,7 +146,7 @@ class VirtualRouter:
                     heapq.heappush(pq, (new_cost, v))
 
         u, v = parent[target], target
-        while u != source:
+        while u != source and u is not None:
             v = u
             u = parent[u] # Walk backward to find the next hop
 
@@ -157,23 +158,22 @@ class VirtualRouter:
 
         # Update the graph
         self.add_link(lsa['sender_id'], lsa['router_id'], lsa['router_link_id'], lsa['router_link_cost'])
-        self.add_link(self.router_id, lsa['sender_id'], lsa['sender_link_id'], self.links[lsa['sender_link_id']])
 
         if len(self.graph) > 0:
             self.update_topology_file()
 
+
         graph = dict(self.graph)
         vertices = graph.keys()
 
-        for target in vertices:
-            if target != self.router_id:
-
-                # Update the routing table
-                try:
+        try:
+            for target in vertices:
+                if target != self.router_id:
+                    # Update the routing table
                     cost, next_hop = self.dijkstra(graph, self.router_id, target)
                     self.routing_table[target] = (cost, next_hop)
-                except KeyError:
-                    pass
+        except KeyError:
+            pass
 
         if len(self.routing_table) > 0:
             self.update_routingtable_file()
@@ -210,7 +210,7 @@ class VirtualRouter:
     # Update the routing table file
     def update_routingtable_file(self):
         temp = ''
-        if self.topology_update_buffer != '':
+        if self.routingtable_update_buffer != '':
             temp += '\n'
         temp += 'ROUTING'
         for dest, (total_cost, next_hop) in self.routing_table.items():
@@ -241,9 +241,9 @@ class VirtualRouter:
 
             self.mark_as_seen_before(lsa)
 
-            # Update this router's states using this LSA, then forward it to neighbors
-            self.update_from_LSA(lsa)
+            # Forward the LSA to neighbors, then update this router's states using this LSA, 
             self.propagate(lsa['router_id'], lsa['router_link_id'], lsa['router_link_cost'])
+            self.update_from_LSA(lsa)
 
 
 if __name__ == '__main__':
