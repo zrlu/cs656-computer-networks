@@ -32,7 +32,7 @@ class VirtualRouter:
         self.graph = defaultdict(dict)
 
         # All received LSA
-        self.all_lsa = []
+        self.lsa_seen_before = set()
 
         # Topology file
         self.topology_file = get_logger('topology_{}'.format(self.router_id))
@@ -76,14 +76,15 @@ class VirtualRouter:
             self.links[link_id] = link_cost
 
 
+    # Mark LSA as seen before
+    def mark_as_seen_before(self, other_lsa):
+        self.lsa_seen_before.add((other_lsa['router_id'], other_lsa['router_link_id']))
+
+
+
     # Check if this LSA is seen before
-    def seen_before(self, other):
-        for lsa in self.all_lsa:
-            if lsa['router_id'] == other['router_id'] and \
-               lsa['router_link_id'] == other['router_link_id'] and \
-               lsa['router_link_cost'] == other['router_link_cost']:
-                return True
-        return False
+    def seen_before(self, other_lsa):
+        return (other_lsa['router_id'], other_lsa['router_link_id']) in self.lsa_seen_before
 
 
     # Add a link to the graph
@@ -156,6 +157,7 @@ class VirtualRouter:
 
         # Update the graph
         self.add_link(lsa['sender_id'], lsa['router_id'], lsa['router_link_id'], lsa['router_link_cost'])
+        self.add_link(self.router_id, lsa['sender_id'], lsa['sender_link_id'], self.links[lsa['sender_link_id']])
 
         if len(self.graph) > 0:
             self.update_topology_file()
@@ -236,8 +238,8 @@ class VirtualRouter:
             if self.seen_before(lsa):
                 print('Dropping:{}'.format(self.LSA_str(lsa)))
                 continue
-            else:
-                self.all_lsa.append(lsa)
+
+            self.mark_as_seen_before(lsa)
 
             # Update this router's states using this LSA, then forward it to neighbors
             self.update_from_LSA(lsa)
