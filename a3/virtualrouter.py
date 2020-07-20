@@ -218,9 +218,13 @@ class VirtualRouter:
         if self.topology_update_buffer != '':
             temp += '\n'
         temp += 'TOPOLOGY'
+        entries = []
         for router1 in self.graph:
             for router2 in self.graph[router1]:
-                temp += '\nrouter:{},router:{},linkid:{},cost:{}'.format(router1, router2, self.graph[router1][router2][0], self.graph[router1][router2][1])
+                entries.append((router1, router2, self.graph[router1][router2][0], self.graph[router1][router2][1]))
+        entries.sort()
+        for entry in entries:
+            temp += '\nrouter:{},router:{},linkid:{},cost:{}'.format(*entry)
         if self.topology_update_buffer != temp:
             self.topology_update_buffer = temp
             self.topology_file.info(self.topology_update_buffer)
