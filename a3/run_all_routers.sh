@@ -8,7 +8,7 @@
 ./virtualrouter.sh localhost 2000 6 &
 ./virtualrouter.sh localhost 2000 7 &
 
-sleep 20
+sleep 10
 
 pkill virtualrouter.sh
 pkill python3
