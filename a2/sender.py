@@ -65,6 +65,7 @@ class Sender:
         # If this flag is set, an EOT should be send to the receiver when there is no unacked packet
         self.should_send_eot = False
 
+        
     # Returns an iterator of chunks
     def chunker(self):
         with open(self.filename, 'r') as file:
@@ -92,6 +93,7 @@ class Sender:
             for i in range(0, end):
                 yield i
 
+                
     # Start the timer, if exists, reset the timer
     def timer_start(self):
         if self.timer is not None:
